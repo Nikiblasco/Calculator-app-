@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07060f">
+  <title>NIKI Calculator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="graph.css">
+</head>
+<body>
+  <div class="aurora"><span></span><span></span><span></span></div>
+
+  <main class="app">
+    <header>
+      <h1><b>∑</b> NIKI</h1>
+      <div id="status" class="status loading"><i></i><span>Waking up Python…</span></div>
+    </header>
+
+    <section class="display glass">
+      <div id="result" class="result">
+        <p class="hint">Try <code>x^2 - 5x + 6 = 0</code><br>or<code>integrate(sin(x)*x, x)</code></p>
+      </div>
+    </section>
+    <section class="keypad glass" id="keypad">
+      <div class="tabrow">
+        <nav class="tabs" id="tabs"></nav>
+        <div class="ctrl">
+          <button id="kbd" class="kbd-toggle" title="Phone keyboard">⌨</button>
+          <button id="del" title="Delete">⌫</button>
+          <button id="clr" title="Clear">AC</button>
+        </div>
+      </div>
+      <div class="pad" id="pad"></div>
+    </section>
+
+    <section class="input glass">
+      <input id="expr" type="text" autocomplete="off" autocapitalize="off"
+             spellcheck="false" placeholder="Type a maths problem…" disabled>
+      <button id="go" disabled>=</button>
+    </section>
+
+    <aside class="side glass">
+      <h2>History</h2>
+      <div id="history" class="history"></div>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+  <script src="app.js"></script>
+  <script src="keypad.js"></script>
+  <script src="graph-engine.js"></script>
+  <script src="graph-draw.js"></script>
+<script src="graph-ui.js"></script>
+</body>
+</html>
