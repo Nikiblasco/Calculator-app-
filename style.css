@@ -33,7 +33,31 @@ body {
 }
 
 header { display: flex; justify-content: space-between; align-items: center; }
+.header-right { display: flex; align-items: center; gap: 12px; }
 h1 { font-size: 1.3rem; letter-spacing: .25em; font-weight: 800; }
+
+.angle-toggle {
+  display: flex; align-items: center; gap: 2px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px; padding: 4px;
+}
+.angle-toggle button {
+  flex: 0 0 auto; min-width: 48px; height: 30px; padding: 0 8px;
+  border-radius: 10px; border: 0; background: transparent;
+  color: var(--muted); font-size: .7rem; font-weight: 700; letter-spacing: .05em;
+  cursor: pointer; transition: color .15s, background .15s, box-shadow .15s;
+}
+.angle-toggle button.active {
+  color: #07060f; background: linear-gradient(135deg, var(--cyan), var(--violet) 60%, var(--pink));
+  box-shadow: 0 3px 12px rgba(139,92,255,.4);
+}
+.angle-toggle button:not(.active):hover { color: var(--text); }
+@media (hover: hover) {
+  .angle-toggle button:not(.active):hover { color: var(--text); }
+}
+@media (max-width: 420px) {
+  .angle-toggle button { min-width: 40px; height: 28px; font-size: .65rem; }
+}
 h1 b {
   background: linear-gradient(135deg, var(--cyan), var(--pink));
   -webkit-background-clip: text; background-clip: text; color: transparent; margin-right: 6px;

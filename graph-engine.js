@@ -3,26 +3,36 @@
 var GE = (function () {
   "use strict";
 
-  function gamma(z) {
-    if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
-    z -= 1;
-    var c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
-      -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
-      1.5056327351493116e-7];
-    var x = c[0];
-    for (var i = 1; i < 9; i++) x += c[i] / (z + i);
-    var t = z + 7.5;
-    return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+  var angleMode = "deg"; // "deg" or "rad"
+  var DEG_TO_RAD = Math.PI / 180;
+  var RAD_TO_DEG = 180 / Math.PI;
+
+  function setAngleMode(mode) {
+    angleMode = mode;
   }
 
-  var F = {
-    sin: Math.sin, cos: Math.cos, tan: Math.tan,
-    asin: Math.asin, acos: Math.acos, atan: Math.atan,
-    sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
-    asinh: Math.asinh, acosh: Math.acosh, atanh: Math.atanh,
-    sec: function (x) { return 1 / Math.cos(x); },
-    csc: function (x) { return 1 / Math.sin(x); },
-    cot: function (x) { return 1 / Math.tan(x); },
+  function getAngleMode() {
+    return angleMode;
+  }
+
+  function makeTrigFuncs(mode) {
+    var deg = mode === "deg";
+    return {
+      sin: deg ? function (x) { return Math.sin(x * DEG_TO_RAD); } : Math.sin,
+      cos: deg ? function (x) { return Math.cos(x * DEG_TO_RAD); } : Math.cos,
+      tan: deg ? function (x) { return Math.tan(x * DEG_TO_RAD); } : Math.tan,
+      asin: deg ? function (x) { return Math.asin(x) * RAD_TO_DEG; } : Math.asin,
+      acos: deg ? function (x) { return Math.acos(x) * RAD_TO_DEG; } : Math.acos,
+      atan: deg ? function (x) { return Math.atan(x) * RAD_TO_DEG; } : Math.atan,
+      sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+      asinh: Math.asinh, acosh: Math.acosh, atanh: Math.atanh,
+      sec: deg ? function (x) { return 1 / Math.cos(x * DEG_TO_RAD); } : function (x) { return 1 / Math.cos(x); },
+      csc: deg ? function (x) { return 1 / Math.sin(x * DEG_TO_RAD); } : function (x) { return 1 / Math.sin(x); },
+      cot: deg ? function (x) { return 1 / Math.tan(x * DEG_TO_RAD); } : function (x) { return 1 / Math.tan(x); },
+    };
+  }
+
+  var baseFuncs = {
     sqrt: Math.sqrt, cbrt: Math.cbrt, abs: Math.abs, exp: Math.exp,
     ln: Math.log,
     log: function (x, b) { return b === undefined ? Math.log(x) : Math.log(x) / Math.log(b); },
@@ -41,6 +51,20 @@ var GE = (function () {
     },
     frac: function (x) { return x - Math.floor(x); }
   };
+
+  var F = Object.assign({}, baseFuncs, makeTrigFuncs(angleMode));
+
+  function gamma(z) {
+    if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+    z -= 1;
+    var c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+      -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
+      1.5056327351493116e-7];
+    var x = c[0];
+    for (var i = 1; i < 9; i++) x += c[i] / (z + i);
+    var t = z + 7.5;
+    return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+  }
   var ALIAS = { arcsin: "asin", arccos: "acos", arctan: "atan", ceiling: "ceil", sgn: "sign" };
   var VARS = { x: 1, y: 1, t: 1, u: 1, v: 1 };
 
@@ -450,9 +474,19 @@ var GE = (function () {
     return w.length === 1 || isFunc(w) || w === "pi" || w === "tau" || w === "theta";
   }
 
+  function updateAngleMode(mode) {
+    angleMode = mode;
+    // Rebuild F with new trig functions
+    var trigFuncs = makeTrigFuncs(angleMode);
+    for (var k in trigFuncs) {
+      F[k] = trigFuncs[k];
+    }
+  }
+
   return {
     isKnownWord: isKnownWord, classify: classify, compile: compile, findRoots: findRoots, findExtrema: findExtrema,
-    analyse: analyse, fmt: fmt, niceStep: niceStep, piStep: piStep, piLabel: piLabel, FUNCS: F
+    analyse: analyse, fmt: fmt, niceStep: niceStep, piStep: piStep, piLabel: piLabel, FUNCS: F,
+    setAngleMode: updateAngleMode, getAngleMode: getAngleMode
   };
 })();
 if (typeof module !== "undefined") module.exports = GE;

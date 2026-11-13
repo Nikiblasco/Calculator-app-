@@ -29,7 +29,7 @@ const TABS = [
     ["csc", "csc(|)"], ["sec", "sec(|)"], ["cot", "cot(|)"], ["atan2", "atan2(|, )"],
     ["sinh", "sinh(|)"], ["cosh", "cosh(|)"], ["tanh", "tanh(|)"],
     ["sinh⁻¹", "asinh(|)"], ["cosh⁻¹", "acosh(|)"], ["tanh⁻¹", "atanh(|)"],
-  ], note: "SOH-CAH-TOA: sin = opposite ÷ hypotenuse · cos = adjacent ÷ hypotenuse · tan = opposite ÷ adjacent. Press ° after a number for degrees, e.g. sin(30°). Without it, angles are in radians." },
+  ], note: "SOH-CAH-TOA: sin = opposite ÷ hypotenuse · cos = adjacent ÷ hypotenuse · tan = opposite ÷ adjacent. Use the DEG/RAD toggle in the header to switch angle modes. Press ° after a number for explicit degrees, e.g. sin(30°)." },
 
   { id: "calc", label: "Calculus", keys: [
     ["∫", "integrate(|, x)"], ["∫ₐᵇ", "integrate(|, (x, a, b))"],

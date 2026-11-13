@@ -69,7 +69,8 @@
     dim: 2, rows: [], rows2: [], rows3: [], P: {}, view: { cx: 0, cy: 0, sx: 55, sy: 55, piAxis: false }, lock: true,
     t0: 0, t1: TWO_PI, R: 5, res: 36, cam: { yaw: -0.8, pitch: 0.55, zoom: 1 }, auto: false, wire: false, solid: false,
     gridLines: true, eq: null, trace: false, traceInfo: null, lite: false, markers: [], analysis: false, scene: null, polys: [],
-    fast: false, play: {}, phase: {}, pkey: null, pyReady: false
+    fast: false, play: {}, phase: {}, pkey: null, pyReady: false,
+    angleMode: "deg"
   };
   var W = 0, H = 0, DPR = 1, colorIdx = 0, lastRow = null, lastInput = null;
   var dirty = true, raf = 0, lastT = 0, slow = 0, saveT = 0, anaT = 0, fastT = 0, built = false;
@@ -390,7 +391,34 @@
     if (liteBox) liteBox.checked = G.lite;
     if (setInputs.an) setInputs.an.classList.toggle("on", G.analysis);
     if (setInputs.an) setInputs.an.textContent = G.analysis ? "Points of interest: ON" : "Points of interest: OFF";
+    if (angleModeBtn) angleModeBtn.textContent = G.angleMode === "deg" ? "DEG" : "RAD";
   }
+
+  // Listen for angle mode changes from main app
+  window.addEventListener("nikiAngleModeChange", function(e) {
+    G.angleMode = e.detail.mode;
+    GE.setAngleMode(G.angleMode);
+    // Recompile all rows with new angle mode
+    for (var i = 0; i < G.rows.length; i++) compileRow(G.rows[i]);
+    G.scene = null;
+    scheduleAnalysis();
+    invalidate();
+    syncUI();
+  });
+
+  // Also listen for storage changes (for multi-tab sync)
+  window.addEventListener("storage", function(e) {
+    if (e.key === "nikiAngleMode") {
+      G.angleMode = e.newValue || "deg";
+      GE.setAngleMode(G.angleMode);
+      // Recompile all rows with new angle mode
+      for (var i = 0; i < G.rows.length; i++) compileRow(G.rows[i]);
+      G.scene = null;
+      scheduleAnalysis();
+      invalidate();
+      syncUI();
+    }
+  });
   function setDim(d) {
     G.dim = d;
     G.rows = d === 2 ? G.rows2 : G.rows3;
@@ -562,6 +590,16 @@
     ctx = canvas.getContext("2d");
     readout = h("div", { class: "greadout" });
     dimBtn = toolBtn("dim", "3D", "Switch 2D / 3D", "gdim", function () { setDim(G.dim === 2 ? 3 : 2); });
+    var angleModeBtn = h("button", { class: "gtool", title: "Angle mode (DEG/RAD)", text: G.angleMode === "deg" ? "DEG" : "RAD", on: { click: function () {
+        G.angleMode = G.angleMode === "deg" ? "rad" : "deg";
+        localStorage.setItem("nikiAngleMode", G.angleMode);
+        GE.setAngleMode(G.angleMode);
+        G.scene = null;
+        scheduleAnalysis();
+        invalidate();
+        syncUI();
+      } } });
+
     var toolsEl = h("div", { class: "gtools" }, [
       dimBtn,
       toolBtn("zin", "+", "Zoom in", "", function () { zoomBy(1.3); }),
@@ -573,6 +611,7 @@
         else { G.eq = !(G.eq === null ? !!(G.scene && G.scene.equal) : G.eq); G.scene = null; syncUI(); invalidate(); }
       }),
       toolBtn("pi", "π", "Label the x-axis in multiples of π", "only2", function () { G.view.piAxis = !G.view.piAxis; syncUI(); viewChanged(); }),
+      angleModeBtn,
       toolBtn("auto", "⟳", "Auto-rotate", "only3", function () { G.auto = !G.auto; syncUI(); invalidate(); }),
       toolBtn("wire", "▦", "Wireframe", "only3", function () { G.wire = !G.wire; syncUI(); invalidate(); }),
       toolBtn("col", "◐", "Colour: height gradient / solid", "only3", function () { G.solid = !G.solid; syncUI(); invalidate(); }),
@@ -642,6 +681,12 @@
 
   // ---------- init ----------
   function init() {
+    // Load angle mode from localStorage
+    var savedAngleMode = localStorage.getItem("nikiAngleMode");
+    if (savedAngleMode) {
+      G.angleMode = savedAngleMode;
+      GE.setAngleMode(G.angleMode);
+    }
     build();
     if (!load()) {
       G.rows2 = [newRow("sin(x)"), newRow("x^2/8")];

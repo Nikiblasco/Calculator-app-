@@ -2,9 +2,10 @@ const $ = (id) => document.getElementById(id);
 const statusEl = $("status"), exprEl = $("expr"), goBtn = $("go");
 const resultEl = $("result"), historyEl = $("history");
 let calc = null;
+let angleMode = "deg"; // "deg" or "rad"
 
 // ---------- the Python brain ----------
-const PY = String.raw`
+const PY_TEMPLATE = `
 import json
 from sympy import *
 from sympy.parsing.sympy_parser import (
@@ -15,8 +16,8 @@ L = {"e": E, "f": Function("f"), "g": Function("g"), "h": Function("h")}
 T = standard_transformations + (implicit_multiplication_application, convert_xor)
 
 def clean(t):
-    return (t.replace("π", "pi").replace("√", "sqrt").replace("×", "*")
-             .replace("÷", "/").replace("−", "-").replace("°", "*(pi/180)"))
+    return t.replace("π", "pi").replace("√", "sqrt").replace("×", "*")\\
+         .replace("÷", "/").replace("−", "-").replace("°", "*(pi/180)")
 
 def parse(s):
     return parse_expr(s, transformations=T, local_dict=dict(L))
@@ -28,11 +29,11 @@ def calc(text):
         eq = Eq(parse(lhs), parse(rhs))
         syms = sorted(eq.free_symbols, key=str)
         if not syms:
-            return json.dumps({"latex": r"\text{" + str(bool(eq)) + "}"})
+            return json.dumps({"latex": r"\\text{" + str(bool(eq)) + "}"})
         var = next((s for s in syms if str(s) == "x"), syms[0])
         sols = solve(eq, var)
         if not sols:
-            return json.dumps({"latex": r"\text{No solution}"})
+            return json.dumps({"latex": r"\\text{No solution}"})
         out = ",\\; ".join(latex(var) + " = " + latex(s) for s in sols)
         return json.dumps({"latex": out})
     res = parse(text)
@@ -46,6 +47,10 @@ def calc(text):
     return json.dumps(out)
 `;
 
+function getPY() {
+  return PY_TEMPLATE;
+}
+
 // ---------- boot ----------
 function setStatus(text, state = "loading") {
   statusEl.className = "status " + state;
@@ -58,16 +63,57 @@ async function boot() {
     const pyodide = await loadPyodide();
     setStatus("Loading SymPy…");
     await pyodide.loadPackage("sympy");
-    await pyodide.runPythonAsync(PY);
+    await pyodide.runPythonAsync(getPY());
     calc = pyodide.globals.get("calc");
     window.pyodide = pyodide;
     setStatus("Ready", "ready");
     exprEl.disabled = false;
     goBtn.disabled = false;
     exprEl.focus();
+
+    setupAngleToggle();
+
+    // Load angle mode from localStorage (after setup so UI is ready)
+    const savedMode = localStorage.getItem("nikiAngleMode");
+    if (savedMode) {
+      setAngleMode(savedMode);
+    }
   } catch (err) {
     console.error(err);
     setStatus("Failed to load. Check connection", "error");
+  }
+}
+
+function setupAngleToggle() {
+  const angleToggle = $("angleMode");
+  if (!angleToggle) return;
+
+  angleToggle.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-mode]");
+    if (btn) {
+      setAngleMode(btn.dataset.mode);
+    }
+  });
+}
+
+function setAngleMode(mode) {
+  angleMode = mode;
+  localStorage.setItem("nikiAngleMode", mode);
+
+  // Update UI
+  const angleToggle = $("angleMode");
+  if (angleToggle) {
+    angleToggle.querySelectorAll("button").forEach(b => {
+      b.classList.toggle("active", b.dataset.mode === mode);
+    });
+  }
+
+  // Dispatch custom event for graph UI and other listeners
+  window.dispatchEvent(new CustomEvent("nikiAngleModeChange", { detail: { mode: mode } }));
+
+  // Re-evaluate current expression if any
+  if (exprEl.value.trim() && calc) {
+    run();
   }
 }
 
@@ -103,11 +149,104 @@ function addHistory(text) {
   while (historyEl.children.length > 20) historyEl.lastChild.remove();
 }
 
+// Convert trig functions based on angle mode
+function preprocessForAngleMode(text) {
+  if (angleMode !== "deg") return text;
+
+  const DEG_TO_RAD = " * (Math.PI / 180)";
+  const RAD_TO_DEG = " * (180 / Math.PI)";
+
+  // Helper to find matching closing parenthesis
+  function findMatchingParen(str, startIdx) {
+    let depth = 0;
+    for (let i = startIdx; i < str.length; i++) {
+      if (str[i] === '(') depth++;
+      else if (str[i] === ')') {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+    return -1;
+  }
+
+  // Check if at position idx, the function name is a complete word (not part of a longer name)
+  function isWholeFunctionName(str, idx, func) {
+    if (idx > 0) {
+      const prevChar = str[idx - 1];
+      // If previous char is a letter, it's part of a longer function name (e.g., 'a' in 'asin')
+      if (/[a-zA-Z]/.test(prevChar)) return false;
+    }
+    return true;
+  }
+
+  let result = text;
+
+  // Process inverse trig functions FIRST (asin, acos, etc.)
+  // We need to multiply the result by RAD_TO_DEG
+  // asin(x) -> (asin(x)) * RAD_TO_DEG
+  const inverseTrigFuncs = ["asin", "acos", "atan", "acsc", "asec", "acot"];
+  for (const func of inverseTrigFuncs) {
+    let pos = 0;
+    while (true) {
+      const idx = result.indexOf(func + "(", pos);
+      if (idx === -1) break;
+      // Verify it's a complete function name (not part of longer name)
+      if (!isWholeFunctionName(result, idx, func)) {
+        pos = idx + 1;
+        continue;
+      }
+      const parenStart = idx + func.length;  // index of '('
+      const parenEnd = findMatchingParen(result, parenStart);
+      if (parenEnd !== -1) {
+        // Wrap the entire function call and multiply by RAD_TO_DEG
+        const beforeFunc = result.slice(0, idx);
+        const funcCall = result.slice(idx, parenEnd + 1);  // func(...)
+        const afterFunc = result.slice(parenEnd + 1);
+        result = beforeFunc + "(" + funcCall + RAD_TO_DEG + ")" + afterFunc;
+        pos = idx + func.length + 3;
+      } else {
+        pos = idx + 1;
+      }
+    }
+  }
+
+  // Process regular trig functions (sin, cos, etc.)
+  // We need to multiply the argument by DEG_TO_RAD
+  // sin(x) -> sin(x * DEG_TO_RAD)
+  const trigFuncs = ["sin", "cos", "tan", "csc", "sec", "cot"];
+  for (const func of trigFuncs) {
+    let pos = 0;
+    while (true) {
+      const idx = result.indexOf(func + "(", pos);
+      if (idx === -1) break;
+      // Verify it's a complete function name (not part of longer name like asin)
+      if (!isWholeFunctionName(result, idx, func)) {
+        pos = idx + 1;
+        continue;
+      }
+      const parenStart = idx + func.length;  // index of '('
+      const parenEnd = findMatchingParen(result, parenStart);
+      if (parenEnd !== -1) {
+        // Insert DEG_TO_RAD multiplication before the closing paren
+        const beforeArg = result.slice(0, parenEnd);  // everything up to ')'
+        const afterArg = result.slice(parenEnd);      // ')' and everything after
+        result = beforeArg + DEG_TO_RAD + afterArg;
+        pos = idx + func.length + 3;
+      } else {
+        pos = idx + 1;
+      }
+    }
+  }
+
+  return result;
+}
+
 function run() {
   const text = exprEl.value.trim();
   if (!text || !calc) return;
   try {
-    showResult(JSON.parse(calc(text)));
+    const processedText = preprocessForAngleMode(text);
+    showResult(JSON.parse(calc(processedText)));
     addHistory(text);
   } catch (err) {
     showError(err);
