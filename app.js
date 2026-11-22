@@ -15,15 +15,27 @@ from sympy.parsing.sympy_parser import (
 L = {"e": E, "f": Function("f"), "g": Function("g"), "h": Function("h")}
 T = standard_transformations + (implicit_multiplication_application, convert_xor)
 
-def clean(t):
+D = pi / 180
+DEG = {
+    "sin": lambda a: sin(a*D),  "cos": lambda a: cos(a*D),  "tan": lambda a: tan(a*D),
+    "csc": lambda a: csc(a*D),  "sec": lambda a: sec(a*D),  "cot": lambda a: cot(a*D),
+    "asin": lambda a: asin(a)/D, "acos": lambda a: acos(a)/D, "atan": lambda a: atan(a)/D,
+    "acsc": lambda a: acsc(a)/D, "asec": lambda a: asec(a)/D, "acot": lambda a: acot(a)/D,
+}
+
+def clean(t, mode):
+    deg = "" if mode == "deg" else "*(pi/180)"   # in DEG mode, ° is already implied
     return t.replace("π", "pi").replace("√", "sqrt").replace("×", "*")\\
-         .replace("÷", "/").replace("−", "-").replace("°", "*(pi/180)")
+         .replace("÷", "/").replace("−", "-").replace("°", deg)
 
-def parse(s):
-    return parse_expr(s, transformations=T, local_dict=dict(L))
+def parse(s, mode):
+    d = dict(L)
+    if mode == "deg":
+        d.update(DEG)
+    return parse_expr(s, transformations=T, local_dict=d)
 
-def calc(text):
-    text = clean(text)
+def calc(text, mode="rad"):
+    text = clean(text, mode)
     if "=" in text:
         lhs, rhs = text.split("=", 1)
         eq = Eq(parse(lhs), parse(rhs))
@@ -153,8 +165,8 @@ function addHistory(text) {
 function preprocessForAngleMode(text) {
   if (angleMode !== "deg") return text;
 
-  const DEG_TO_RAD = " * (Math.PI / 180)";
-  const RAD_TO_DEG = " * (180 / Math.PI)";
+  const DEG_TO_RAD = " * (pi / 180)";
+  const RAD_TO_DEG = " * (180 / pi)";
 
   // Helper to find matching closing parenthesis
   function findMatchingParen(str, startIdx) {
