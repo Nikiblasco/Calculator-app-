@@ -74,7 +74,7 @@
   };
   var W = 0, H = 0, DPR = 1, colorIdx = 0, lastRow = null, lastInput = null;
   var dirty = true, raf = 0, lastT = 0, slow = 0, saveT = 0, anaT = 0, fastT = 0, built = false;
-  var gview, stage, canvas, ctx, rowsEl, paramsEl, anaEl, readout, dimBtn, lockBtn, tools = {}, pUI = {}, liteBox, setInputs = {}, pages = {}, tabBtns = {};
+  var gview, stage, canvas, ctx, rowsEl, paramsEl, anaEl, readout, dimBtn, lockBtn, tools = {}, pUI = {}, liteBox, setInputs = {}, pages = {}, tabBtns = {}, angleModeBtn;
 
   try {
     if ((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || (navigator.deviceMemory && navigator.deviceMemory <= 2)) G.lite = true;
@@ -574,7 +574,8 @@
 
     // view switch in the header
     var bCalc = h("button", { class: "active", text: "Calc" }), bGraph = h("button", { text: "Graph" });
-    header.insertBefore(h("div", { class: "viewswitch" }, [bCalc, bGraph]), document.getElementById("status"));
+    var statusBadge = document.getElementById("status");
+    statusBadge.parentNode.insertBefore(h("div", { class: "viewswitch" }, [bCalc, bGraph]), statusBadge);
     function setView(v) {
       document.body.setAttribute("data-view", v);
       bCalc.classList.toggle("active", v === "calc");
@@ -590,7 +591,7 @@
     ctx = canvas.getContext("2d");
     readout = h("div", { class: "greadout" });
     dimBtn = toolBtn("dim", "3D", "Switch 2D / 3D", "gdim", function () { setDim(G.dim === 2 ? 3 : 2); });
-    var angleModeBtn = h("button", { class: "gtool", title: "Angle mode (DEG/RAD)", text: G.angleMode === "deg" ? "DEG" : "RAD", on: { click: function () {
+    angleModeBtn = h("button", { class: "gtool", title: "Angle mode (DEG/RAD)", text: G.angleMode === "deg" ? "DEG" : "RAD", on: { click: function () {
         G.angleMode = G.angleMode === "deg" ? "rad" : "deg";
         localStorage.setItem("nikiAngleMode", G.angleMode);
         GE.setAngleMode(G.angleMode);
